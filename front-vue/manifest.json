@@ -1,0 +1,9 @@
+{
+    "name": "Ebay Inventory Tool",
+    "short_name": "Ebay Inv Tool",
+    "icons": [],
+    "start_url": "/?home=true",
+    "theme_color": "#42B883",
+    "background_color": "#2C3D4E",
+    "display": "standalone"
+}
