@@ -16,7 +16,7 @@ app.add_middleware(
 @app.post("/api/create-ebay-item")
 async def query_create_ebay_item(ebay_item: EbayItem):
     print(f'New Ebay Item: {ebay_item}')
-    return "Created New Item!"
+    return 200
 
 @app.get('/api/get-ebay-item/{item_id}')
 async def query_get_ebay_item_by_id(item_id: str):

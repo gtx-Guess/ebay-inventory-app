@@ -23,23 +23,26 @@
                     <option value="No">No</option>
                 </select>
             </div>
-            <button @click="saveFormDataFunction" class="form-submit-button">Save Item</button>
+            <button @click="saveFormDataClick" class="form-submit-button">Save Item</button>
             <button id="closeModal" class="close-modal" style="margin-top: 69px;" @click="closeModalButtonClicked">Back</button>
         </form>
         <form id="itemSearchForm" class="hide" style="transform: translate(-50%, -5%);" @submit.prevent="handleSubmit">
-            <div class="form-group" style="margin-top: 25%; font-size: 30px; flex-direction: column;">
+            <div v-if="!foundItem" class="form-group" style="margin-top: 25%; font-size: 30px; flex-direction: column;">
                 <label for="item-id-search" style="width: 100%;">Enter the ebay item ID:</label><br>
-                <input type="text" class="item-id-search" style="padding: 10px;" v-model="itemSearchForm.itemId">
+                <input type="text" id="item-id-search" style="padding: 10px;" v-model="itemSearchForm.itemId">
             </div>
-            <button @click="itemSearchFunction" class="form-submit-button">Save Item</button>
+            <div v-else class="form-group" style="margin-top: 25%; font-size: 30px; flex-direction: column;">
+                <h4>this be the item searched for: {{ itemSearchForm.itemId }}</h4>
+            </div>
+            <button id="item-save-button" @click="itemSearchClick" class="form-submit-button">Search For Item</button>
             <button id="closeModal" class="close-modal" style="margin-top: 130px;" @click="closeModalButtonClicked">Back</button>
         </form>
         <form id="searchForItemContainerForm" class="hide" style="transform: translate(-50%, -5%);" @submit.prevent="handleSubmit">
             <div class="form-group" style="margin-top: 25%; font-size: 30px; flex-direction: column;">
                 <label for="container-id-search" style="width: 100%;">Enter the container ID:</label><br>
-                <input type="text" class="container-id-search" style="padding: 10px;" v-model="containerSearchForm.containerId">
+                <input type="text" id="container-id-search" style="padding: 10px;" v-model="containerSearchForm.containerId">
             </div>
-            <button @click="containerSearchFunction" class="form-submit-button">Save Item</button>
+            <button @click="containerSearchClick" class="form-submit-button">Search For Container</button>
             <button id="closeModal" class="close-modal" style="margin-top: 130px;" @click="closeModalButtonClicked">Back</button>
         </form>
     </main>
@@ -47,22 +50,20 @@
 
 <script setup>
     import { ref, reactive } from "vue";
-    import axios from "axios";
-    const BASE_URL = 'http://127.0.0.1:8000/api';
+    import { makeSaveRequest, makeItemSearchRequest, makeContainerSearchRequest } from "../utils";
 
     const activeModal = ref('');
     const alertText = ref('');
+    const foundItem = ref(false);
+    const fountContainer = ref(false);
+    const defaultItemSearchForm = { itemId: '' };
+    const defaultContainerSearchForm = { containerId: '' };
     const defaultSaveForm = {
         ebayItemId: '',
         containerId: '',
         listingStatus: ''
     };
-    const defaultItemSearchForm = {
-        itemId: ''
-    };
-    const defaultContainerSearchForm = {
-        containerId: ''
-    };
+
     const saveFormData = reactive(defaultSaveForm);
     const itemSearchForm = reactive(defaultItemSearchForm);
     const containerSearchForm = reactive(defaultContainerSearchForm);
@@ -76,84 +77,75 @@
     const closeModalButtonClicked = () => { 
         $(`#${activeModal.value}`).toggleClass('hide');
         $('#buttonNav').toggleClass('hide');
+        resetSearchModals();
     };
 
-    const saveFormDataFunction = async () => {
-        alertText.value = 'Saving Item, please wait!';
-        $(`#${activeModal.value}`).trigger('reset');
-        $('#alert').toggleClass('hide');
-
+    const saveFormDataClick = async () => {
+        let elementIds = [ 'ebay-item-id', 'container-id', 'listing-status' ];
         if(saveFormData.ebayItemId !== "" && saveFormData.containerId !== "" && saveFormData.listingStatus !== ""){
-            try {
-                const newEbayItem = { 
-                    item_id: saveFormData.ebayItemId, 
-                    container_id: saveFormData.containerId, 
-                    listing_status: saveFormData.listingStatus 
+            alertText.value = 'Saving Item!';
+            $('#alert').toggleClass('hide');
+            setTimeout(async () => {
+                const resp = await makeSaveRequest(saveFormData, alertText);
+                if(resp === 200){
+                    elementIds.forEach(id => $(`#${id}`).val('') );
                 };
-                const resp = await axios.post(`${BASE_URL}/create-ebay-item`, newEbayItem);
-                if(resp.status === 200){
-                    alertText.value = 'Saved!';
-                    setTimeout( () => $('#alert').toggleClass('hide'), 2000 );
-                };
-            } catch (error) {
-                alertText.value = 'There was a problem saving!';
-                setTimeout( () => $('#alert').toggleClass('hide'), 2000 );
-                console.log(error);
-            };
+            }, 2000);
         }else{
             alertText.value = 'All of the fields are required!';
-            setTimeout( () => $('#alert').toggleClass('hide'), 2000 );
+            $('#alert').toggleClass('hide')
+            setTimeout( () => $('#alert').toggleClass('hide'), 3000 );
+            return false
         };
     };
 
-    const itemSearchFunction = async () => {
-        console.log(itemSearchForm);
-        alertText.value = 'Searching for ebay item, please wait!';
-        $(`#${activeModal.value}`).trigger('reset');
-        $('#alert').toggleClass('hide');
-
+    const itemSearchClick = async () => {
         if(itemSearchForm.itemId !== ""){
-            try {
-                const resp = await axios.get(`${BASE_URL}/get-ebay-item/${itemSearchForm.itemId}`);
-                if(resp.status === 200){
-                    alertText.value = 'Found the ebay item!';
-                    setTimeout( () => $('#alert').toggleClass('hide'), 2000 );
+            alertText.value = 'Searching for ebay item!';
+            $('#alert').toggleClass('hide');
+            setTimeout(async ()=> {
+                const resp = await makeItemSearchRequest(itemSearchForm, alertText);
+                if(resp === 200){ 
+                    // this jquery aint working, look into it
+                    $('#item-id-search').val('');
+                    foundItem.value = true;
+                    // $('#item-save-button').toggleClass('hide');
                 };
-            } catch (error) {
-                alertText.value = 'Could not find this item!';
-                setTimeout(() => $('#alert').toggleClass('hide') , 3000);
-                console.error(error);
-            };
+            }, 2000);
         }else{
             alertText.value = 'Dont forget to enter the ebay Item ID!';
+            $('#alert').toggleClass('hide')
             setTimeout(() => $('#alert').toggleClass('hide') , 3000);
+            return false
         };
     };
 
-    const containerSearchFunction = async () => {
-        console.log(containerSearchForm);
-        alertText.value = 'Searching for container, please wait!';
-        $(`#${activeModal.value}`).trigger('reset');
-        $('#alert').toggleClass('hide');
-
+    const containerSearchClick = async () => {
         if(containerSearchForm.containerId !== ''){
-            try {
-                const resp = await axios.get(`${BASE_URL}/get-container/${containerSearchForm.containerId}`);
-                if(resp.status === 200){
-                    alertText.value = 'Found the container!';
-                    setTimeout( () => $('#alert').toggleClass('hide'), 2000 );
-                };
-            } catch (error) {
-                alertText.value = `Couldnt find container by ID: ${containerSearchForm.containerId}!`;
-                setTimeout(() => $('#alert').toggleClass('hide') , 3000);
-                console.error(error);
-            }
+            alertText.value = 'Searching for container!';
+            $('#alert').toggleClass('hide');
+            setTimeout(async ()=> {
+                const resp = await makeContainerSearchRequest(containerSearchForm, alertText);
+                if(resp === 200){ $('#container-id-search').val('') };
+            }, 2000);
         }else{
             alertText.value = 'Dont forget to enter the container ID!';
+            $('#alert').toggleClass('hide')
             setTimeout(() => $('#alert').toggleClass('hide') , 3000);
+            return false;
         };
     };
 
+    const resetSearchModals = () => {
+        if(foundItem){
+            foundItem.value = false;
+            // $('#item-save-button').toggleClass('hide');
+        };
+        if(fountContainer){
+            fountContainer.value = false;
+            $('#item-save-button').toggleClass('hide');
+        };
+    };
 
 </script>
 
@@ -163,7 +155,7 @@
         margin: 0;
         padding: 0;
         background: rgb(215, 243, 155);
-        overflow: hidden;
+        overflow-x: hidden;
     }
 
     header{
